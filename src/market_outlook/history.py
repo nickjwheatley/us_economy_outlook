@@ -7,6 +7,7 @@ from pathlib import Path
 from .models import IndicatorSnapshot, OutlookResult, SourceSeries
 
 RECESSION_PERIODS = [
+    {"start": "2001-03-01", "end": "2001-11-01", "label": "Dot-com recession"},
     {"start": "2007-12-01", "end": "2009-06-01", "label": "Great Recession"},
     {"start": "2020-02-01", "end": "2020-04-01", "label": "COVID recession"},
 ]
