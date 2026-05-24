@@ -6,7 +6,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from .dashboard import render_dashboard
-from .history import generate_dashboard_history
+from .history import generate_dashboard_history, load_historical_indicator_points
 from .io import load_indicator_snapshot, load_source_registry
 from .scoring import compute_outlook
 
@@ -15,6 +15,11 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run deterministic US economic outlook score.")
     parser.add_argument("--registry", default="data/source_registry.csv", help="Path to source registry CSV.")
     parser.add_argument("--snapshot", default="data/fixtures/latest_indicators.csv", help="Path to indicator snapshot CSV.")
+    parser.add_argument(
+        "--history",
+        default="data/fixtures/historical_indicators.csv",
+        help="Optional path to historical indicator CSV with series_id,date,value columns.",
+    )
     parser.add_argument("--out", default="outputs/dashboard.html", help="Path for generated HTML dashboard.")
     parser.add_argument("--json-out", default="outputs/outlook.json", help="Path for generated JSON result.")
     return parser.parse_args()
@@ -25,7 +30,8 @@ def main() -> None:
     registry = load_source_registry(args.registry)
     snapshots = load_indicator_snapshot(args.snapshot)
     result = compute_outlook(registry, snapshots)
-    history = generate_dashboard_history(registry, snapshots, result)
+    historical_points = load_historical_indicator_points(args.history)
+    history = generate_dashboard_history(registry, snapshots, result, historical_points)
 
     html_path = Path(args.out)
     json_path = Path(args.json_out)

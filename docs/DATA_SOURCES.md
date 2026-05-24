@@ -3,6 +3,7 @@
 This file tracks public economic and market data used by the outlook model.
 
 The canonical machine-readable registry is `data/source_registry.csv`.
+The dashboard historical fixture is `data/fixtures/historical_indicators.csv`.
 
 ## Current MVP Sources
 
@@ -20,6 +21,10 @@ The canonical machine-readable registry is `data/source_registry.csv`.
 - Flag stale data by expected release frequency.
 - Prefer ALFRED vintages for historical backtests where revisions matter.
 - Record licensing constraints for non-government or semi-public data.
+
+## Historical Chart Data
+
+Run `py scripts/fetch_fred_history.py` to refresh monthly history for FRED-backed indicators. Non-FRED valuation placeholders fall back to deterministic synthetic history until licensed or public historical feeds are added. FRED-backed histories must cover most of the 20-year window; short partial pulls fall back rather than being displayed as full-horizon data.
 
 ## Debt And Delinquency Series
 

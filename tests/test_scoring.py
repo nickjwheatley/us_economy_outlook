@@ -2,7 +2,7 @@ import unittest
 from dataclasses import replace
 
 from market_outlook.io import load_indicator_snapshot, load_source_registry
-from market_outlook.history import generate_dashboard_history
+from market_outlook.history import generate_dashboard_history, load_historical_indicator_points
 from market_outlook.scoring import compute_outlook, indicator_score
 
 
@@ -61,12 +61,16 @@ class ScoringTests(unittest.TestCase):
         registry = load_source_registry("data/source_registry.csv")
         snapshots = load_indicator_snapshot("data/fixtures/latest_indicators.csv")
         result = compute_outlook(registry, snapshots)
+        historical_points = load_historical_indicator_points("data/fixtures/historical_indicators.csv")
 
-        history = generate_dashboard_history(registry, snapshots, result)
+        history = generate_dashboard_history(registry, snapshots, result, historical_points)
 
-        self.assertEqual(len(history["score"]), 240)
+        self.assertGreaterEqual(len(history["score"]), 200)
         self.assertIn("UNRATE", history["indicators"])
-        self.assertEqual(len(history["indicators"]["UNRATE"]["points"]), 240)
+        self.assertGreaterEqual(len(history["indicators"]["UNRATE"]["points"]), 200)
+        self.assertEqual(history["indicators"]["UNRATE"]["historySource"], "FRED monthly history")
+        self.assertEqual(history["indicators"]["T10Y2Y"]["historySource"], "FRED monthly history")
+        self.assertEqual(len(history["indicators"]["T10Y2Y"]["points"]), 240)
         self.assertGreaterEqual(len(history["recessions"]), 2)
 
 

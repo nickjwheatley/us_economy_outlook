@@ -22,6 +22,12 @@ py -m market_outlook.cli --snapshot data/fixtures/latest_indicators.csv --out ou
 
 Then open `outputs/dashboard.html` in a browser.
 
+To refresh FRED-backed historical chart data:
+
+```powershell
+py scripts/fetch_fred_history.py
+```
+
 ## Project Shape
 
 - `data/source_registry.csv`: public source registry and canonical series metadata.

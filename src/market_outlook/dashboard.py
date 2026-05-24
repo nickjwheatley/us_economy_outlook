@@ -98,6 +98,20 @@ def render_dashboard(result: OutlookResult, history: dict[str, object] | None = 
     .chart-toolbar {{ display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }}
     .chart-box {{ height: 320px; position: relative; }}
     canvas {{ width: 100%; height: 100%; display: block; }}
+    .tooltip {{
+      position: fixed;
+      display: none;
+      pointer-events: none;
+      z-index: 20;
+      max-width: 220px;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.96);
+      box-shadow: 0 8px 18px rgba(23, 32, 42, 0.14);
+      font-size: 12px;
+      color: var(--ink);
+    }}
     select {{
       min-width: 260px;
       max-width: 100%;
@@ -192,6 +206,7 @@ def render_dashboard(result: OutlookResult, history: dict[str, object] | None = 
       </div>
     </section>
   </main>
+  <div id="chartTooltip" class="tooltip"></div>
   <script id="dashboard-data" type="application/json">{history_json}</script>
   <script>
     const dashboardData = JSON.parse(document.getElementById("dashboard-data").textContent);
@@ -199,6 +214,7 @@ def render_dashboard(result: OutlookResult, history: dict[str, object] | None = 
     const lineColor = "#1f7a8c";
     const recessionColor = "rgba(90, 101, 112, 0.18)";
     const gridColor = "#d9e0e7";
+    const chartCache = new Map();
 
     function resizeCanvas(canvas) {{
       const rect = canvas.getBoundingClientRect();
@@ -293,6 +309,25 @@ def render_dashboard(result: OutlookResult, history: dict[str, object] | None = 
       }});
       ctx.stroke();
 
+      if (Number.isInteger(options.hoverIndex)) {{
+        const point = points[Math.max(0, Math.min(points.length - 1, options.hoverIndex))];
+        const hoverX = xFor(dateMs(point));
+        const hoverY = yFor(point.value);
+        ctx.strokeStyle = "rgba(23, 32, 42, 0.35)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(hoverX, margin.top);
+        ctx.lineTo(hoverX, margin.top + plotH);
+        ctx.stroke();
+        ctx.fillStyle = options.color || lineColor;
+        ctx.beginPath();
+        ctx.arc(hoverX, hoverY, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#fff";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }}
+
       const last = points[points.length - 1];
       ctx.fillStyle = options.color || lineColor;
       ctx.beginPath();
@@ -307,6 +342,46 @@ def render_dashboard(result: OutlookResult, history: dict[str, object] | None = 
       ctx.fillStyle = axisColor;
       ctx.font = "12px Segoe UI, Arial, sans-serif";
       ctx.fillText(options.subtitle || "", margin.left, 22);
+
+      chartCache.set(canvas.id, {{ points, options, margin, plotW, minX, maxX }});
+    }}
+
+    function formatTooltipValue(value, decimals, unit) {{
+      const suffix = unit && unit !== "index" && unit !== "ratio" ? ` ${{unit}}` : "";
+      return `${{Number(value).toLocaleString(undefined, {{
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals
+      }})}}${{suffix}}`;
+    }}
+
+    function showTooltip(event, canvas) {{
+      const cache = chartCache.get(canvas.id);
+      if (!cache || !cache.points.length) return;
+      const rect = canvas.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const relative = Math.max(0, Math.min(1, (x - cache.margin.left) / (cache.plotW || 1)));
+      const hoverIndex = Math.max(0, Math.min(cache.points.length - 1, Math.round(relative * (cache.points.length - 1))));
+      const point = cache.points[hoverIndex];
+      drawLineChart(canvas, cache.points, {{ ...cache.options, hoverIndex }});
+
+      const tooltip = document.getElementById("chartTooltip");
+      tooltip.innerHTML = `<strong>${{cache.options.title || ""}}</strong><br>${{point.date}}<br>${{formatTooltipValue(point.value, cache.options.decimals ?? 1, cache.options.unit || "")}}`;
+      tooltip.style.left = `${{event.clientX + 14}}px`;
+      tooltip.style.top = `${{event.clientY + 14}}px`;
+      tooltip.style.display = "block";
+    }}
+
+    function hideTooltip(canvas) {{
+      const cache = chartCache.get(canvas.id);
+      if (cache) {{
+        drawLineChart(canvas, cache.points, cache.options);
+      }}
+      document.getElementById("chartTooltip").style.display = "none";
+    }}
+
+    function installHover(canvas) {{
+      canvas.addEventListener("mousemove", event => showTooltip(event, canvas));
+      canvas.addEventListener("mouseleave", () => hideTooltip(canvas));
     }}
 
     function populateIndicatorSelect() {{
@@ -327,16 +402,18 @@ def render_dashboard(result: OutlookResult, history: dict[str, object] | None = 
       drawLineChart(document.getElementById("scoreChart"), dashboardData.score || [], {{
         title: "Economy score",
         subtitle: "1 = depression-like, 10 = robust",
+        unit: "score",
         minY: 1,
         maxY: 10,
-        decimals: 0
+        decimals: 2
       }});
       const select = document.getElementById("indicatorSelect");
       const indicator = dashboardData.indicators?.[select.value];
       if (indicator) {{
         drawLineChart(document.getElementById("indicatorChart"), indicator.points || [], {{
           title: indicator.name,
-          subtitle: `${{indicator.block}} | ${{indicator.unit}}`,
+          subtitle: `${{indicator.block}} | ${{indicator.unit}} | ${{indicator.historySource}}`,
+          unit: indicator.unit,
           color: indicator.higherIsBetter ? "#1f7a8c" : "#8c4f1f",
           decimals: indicator.unit.includes("%") || indicator.unit === "pp" ? 1 : 0
         }});
@@ -347,6 +424,8 @@ def render_dashboard(result: OutlookResult, history: dict[str, object] | None = 
     document.getElementById("indicatorSelect").addEventListener("change", drawAllCharts);
     window.addEventListener("resize", drawAllCharts);
     drawAllCharts();
+    installHover(document.getElementById("scoreChart"));
+    installHover(document.getElementById("indicatorChart"));
   </script>
 </body>
 </html>
