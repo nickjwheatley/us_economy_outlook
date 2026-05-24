@@ -24,6 +24,17 @@ Each indicator score now includes both level and trajectory. The dashboard displ
 
 Market valuation is included as a modest-weight block because it matters more for asset-market forward returns than for real economic activity. Expensive markets should not be interpreted as recessionary by themselves, but they lower the margin of safety for VTI-style broad equity exposure.
 
+## Historical Score Calibration
+
+The dashboard's historical score uses source-backed indicator histories and weights acceleration more heavily than static levels. It combines:
+
+- Standardized indicator level.
+- 12-month directional momentum.
+- Breadth of improving indicators.
+- Block-level weighting that emphasizes growth, labor, financial conditions, housing/credit, and inflation.
+
+The historical score also applies a small expansion bonus when growth, labor, and financial conditions are all healthy while the majority of indicators are improving. Market valuation is included as a small historical drag or support factor, but it should not prevent strong real-economy accelerations from scoring above neutral.
+
 ## ML Regime Score
 
 The MVP includes a deterministic logistic recession-risk prototype based on block scores. This is not yet a trained production model. It exists to establish the model interface and dashboard plumbing.

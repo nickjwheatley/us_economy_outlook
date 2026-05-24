@@ -3,8 +3,20 @@ from __future__ import annotations
 import csv
 from datetime import date
 from pathlib import Path
+from statistics import mean, pstdev
 
 from .models import IndicatorSnapshot, OutlookResult, SourceSeries
+
+HISTORICAL_BLOCK_WEIGHTS: dict[str, float] = {
+    "Growth": 0.24,
+    "Labor": 0.23,
+    "Financial Conditions": 0.16,
+    "Housing and Credit": 0.12,
+    "Inflation": 0.10,
+    "Consumer and Business Health": 0.08,
+    "Fiscal and Policy": 0.03,
+    "Market Valuation": 0.02,
+}
 
 RECESSION_PERIODS = [
     {"start": "2001-03-01", "end": "2001-11-01", "label": "Dot-com recession"},
@@ -103,28 +115,48 @@ def _score_from_indicator_history(
     indicators: dict[str, object],
     current_score: float,
 ) -> list[dict[str, float | str]]:
-    by_date: dict[str, list[float]] = {}
+    by_date_block: dict[str, dict[str, list[float]]] = {}
+    breadth_by_date: dict[str, list[float]] = {}
     for series_id, payload in indicators.items():
         points = payload["points"]
         if len(points) < 24:
             continue
         values = [float(point["value"]) for point in points]
-        low = min(values)
-        high = max(values)
-        if high == low:
+        center = mean(values)
+        spread = pstdev(values) or 1.0
+        if spread == 0:
             continue
         series = registry[series_id]
-        for point in points:
-            raw = (float(point["value"]) - low) / (high - low)
-            oriented = raw if series.higher_is_better else 1 - raw
-            by_date.setdefault(str(point["date"]), []).append(1 + 9 * oriented)
+        for index, point in enumerate(points):
+            level_z = (float(point["value"]) - center) / spread
+            oriented_level = level_z if series.higher_is_better else -level_z
+            lookback_index = max(0, index - 12)
+            prior_value = float(points[lookback_index]["value"])
+            momentum = 0.0 if prior_value == 0 else (float(point["value"]) - prior_value) / abs(prior_value)
+            oriented_momentum = momentum if series.higher_is_better else -momentum
+            indicator_score = 5.5 + 1.15 * oriented_level + 7.0 * oriented_momentum
+            indicator_score = max(1.0, min(10.0, indicator_score))
+            by_date_block.setdefault(str(point["date"]), {}).setdefault(series.block, []).append(indicator_score)
+            breadth_by_date.setdefault(str(point["date"]), []).append(1.0 if oriented_momentum > 0 else 0.0)
 
     score_points: list[dict[str, float | str]] = []
-    for date_text in sorted(by_date):
-        scores = by_date[date_text]
-        if len(scores) < 6:
+    for date_text in sorted(by_date_block):
+        block_scores = {
+            block: mean(scores)
+            for block, scores in by_date_block[date_text].items()
+            if scores and block in HISTORICAL_BLOCK_WEIGHTS
+        }
+        if len(block_scores) < 5:
             continue
-        score_points.append({"date": date_text, "value": round(sum(scores) / len(scores), 2)})
+        weight_sum = sum(HISTORICAL_BLOCK_WEIGHTS[block] for block in block_scores)
+        weighted_score = sum(block_scores[block] * HISTORICAL_BLOCK_WEIGHTS[block] for block in block_scores) / weight_sum
+        breadth = mean(breadth_by_date.get(date_text, [0.5]))
+        acceleration_bonus = 1.6 * (breadth - 0.5)
+        weighted_score += acceleration_bonus
+        expansion_blocks = ["Growth", "Labor", "Financial Conditions"]
+        if all(block_scores.get(block, 0) >= 5.0 for block in expansion_blocks) and breadth >= 0.55:
+            weighted_score += 0.75
+        score_points.append({"date": date_text, "value": round(max(1.0, min(10.0, weighted_score)), 2)})
 
     if score_points:
         latest = score_points[-1]["value"]

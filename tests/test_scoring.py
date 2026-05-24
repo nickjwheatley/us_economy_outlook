@@ -78,6 +78,8 @@ class ScoringTests(unittest.TestCase):
         self.assertEqual(history["indicators"]["BUFFETT"]["historySource"], "World Bank annual data")
         self.assertNotIn("SP500FPE", history["indicators"])
         self.assertNotIn("BAMLH0A0HYM2", history["indicators"])
+        values = [point["value"] for point in history["score"]]
+        self.assertGreater(max(values), 6.5)
         self.assertGreaterEqual(len(history["recessions"]), 2)
 
 
