@@ -167,7 +167,7 @@ def render_dashboard(result: OutlookResult, history: dict[str, object] | None = 
     <section class="panel section">
       <div class="chart-toolbar">
         <div>
-          <h2>20-Year Economy Score</h2>
+          <h2>30-Year Economy Score</h2>
           <p class="muted">Recession periods are shaded, FRED-style.</p>
         </div>
       </div>

@@ -9,7 +9,7 @@ The current MVP runs offline from a fixture snapshot and produces:
 - SaaS revenue-risk interpretation.
 - VTI / total-market interpretation.
 - A static HTML dashboard.
-- 20-year dashboard charts for the economy score and any selected input indicator.
+- 30-year dashboard charts for the economy score and any selected input indicator.
 
 ## Run
 

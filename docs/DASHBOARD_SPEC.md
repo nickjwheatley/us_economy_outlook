@@ -22,7 +22,7 @@ It includes:
 
 - Historical score chart
 - Recession shading
-- Indicator selector with 20-year history chart for score inputs that have real historical data
+- Indicator selector with 30-year history chart for score inputs that have real historical data
 - Hover crosshair and tooltip with date and value on both historical charts
 - Block heatmap
 - Top positive and negative drivers

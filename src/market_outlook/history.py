@@ -61,7 +61,7 @@ def generate_dashboard_history(
     snapshots: dict[str, IndicatorSnapshot],
     result: OutlookResult,
     historical_points: dict[str, list[dict[str, float | str]]] | None = None,
-    months: int = 240,
+    months: int = 360,
 ) -> dict[str, object]:
     end_year, end_month = _latest_month(snapshots)
     dates = month_sequence(end_year, end_month, months)

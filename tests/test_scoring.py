@@ -65,12 +65,12 @@ class ScoringTests(unittest.TestCase):
 
         history = generate_dashboard_history(registry, snapshots, result, historical_points)
 
-        self.assertGreaterEqual(len(history["score"]), 200)
+        self.assertGreaterEqual(len(history["score"]), 320)
         self.assertIn("UNRATE", history["indicators"])
         self.assertGreaterEqual(len(history["indicators"]["UNRATE"]["points"]), 200)
         self.assertEqual(history["indicators"]["UNRATE"]["historySource"], "FRED monthly history")
         self.assertEqual(history["indicators"]["T10Y2Y"]["historySource"], "FRED monthly history")
-        self.assertEqual(len(history["indicators"]["T10Y2Y"]["points"]), 240)
+        self.assertEqual(len(history["indicators"]["T10Y2Y"]["points"]), 360)
         self.assertIn("CAPE", history["indicators"])
         self.assertIn("BUFFETT", history["indicators"])
         self.assertIn("CAPE_YIELD_SPREAD", history["indicators"])

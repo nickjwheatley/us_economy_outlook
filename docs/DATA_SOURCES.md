@@ -24,7 +24,7 @@ The dashboard historical fixture is `data/fixtures/historical_indicators.csv`.
 
 ## Historical Chart Data
 
-Run `py scripts/fetch_fred_history.py` to refresh monthly history for FRED-backed indicators. The dashboard indicator selector only shows indicators with real historical data covering most of the 20-year window. Indicators without sufficient history remain in the current score/table but are omitted from historical charts until real history is wired in.
+Run `py scripts/fetch_fred_history.py` to refresh monthly history for FRED-backed indicators. The dashboard indicator selector only shows indicators with real historical data covering most of the 30-year window. Indicators without sufficient history remain in the current score/table but are omitted from historical charts until real history is wired in.
 
 ## Debt And Delinquency Series
 
