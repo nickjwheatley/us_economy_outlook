@@ -30,6 +30,7 @@ It includes:
 - Data freshness panel
 - Debt and delinquency stress panel
 - Valuation panel with CAPE, forward P/E, market-cap-to-GDP, and equity risk premium
+- Market relationship panel with score-to-forward-return correlations for broad indices, software, and sector ETFs
 - SaaS sensitivity module
 - VTI forward-return distribution module
 - Scenario comparison panel

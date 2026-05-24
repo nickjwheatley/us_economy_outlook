@@ -8,6 +8,7 @@ from pathlib import Path
 from .dashboard import render_dashboard
 from .history import generate_dashboard_history, load_historical_indicator_points
 from .io import load_indicator_snapshot, load_source_registry
+from .markets import build_market_relationships, load_market_prices
 from .scoring import compute_outlook
 
 
@@ -19,6 +20,11 @@ def parse_args() -> argparse.Namespace:
         "--history",
         default="data/fixtures/historical_indicators.csv",
         help="Optional path to historical indicator CSV with series_id,date,value columns.",
+    )
+    parser.add_argument(
+        "--markets",
+        default="data/fixtures/market_prices.csv",
+        help="Optional path to monthly market price CSV.",
     )
     parser.add_argument("--out", default="outputs/dashboard.html", help="Path for generated HTML dashboard.")
     parser.add_argument("--json-out", default="outputs/outlook.json", help="Path for generated JSON result.")
@@ -32,13 +38,14 @@ def main() -> None:
     result = compute_outlook(registry, snapshots)
     historical_points = load_historical_indicator_points(args.history)
     history = generate_dashboard_history(registry, snapshots, result, historical_points)
+    market_relationships = build_market_relationships(history["score"], load_market_prices(args.markets))
 
     html_path = Path(args.out)
     json_path = Path(args.json_out)
     html_path.parent.mkdir(parents=True, exist_ok=True)
     json_path.parent.mkdir(parents=True, exist_ok=True)
 
-    html_path.write_text(render_dashboard(result, history), encoding="utf-8")
+    html_path.write_text(render_dashboard(result, history, market_relationships), encoding="utf-8")
     json_path.write_text(json.dumps(asdict(result), indent=2), encoding="utf-8")
 
     print(f"score={result.headline_score:.2f}")

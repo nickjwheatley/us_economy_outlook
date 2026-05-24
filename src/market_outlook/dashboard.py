@@ -6,7 +6,11 @@ from html import escape
 from .models import OutlookResult
 
 
-def render_dashboard(result: OutlookResult, history: dict[str, object] | None = None) -> str:
+def render_dashboard(
+    result: OutlookResult,
+    history: dict[str, object] | None = None,
+    market_relationships: dict[str, object] | None = None,
+) -> str:
     def format_value(value: float, unit: str) -> str:
         if unit in {"%", "pp"}:
             return f"{value:.2f}{unit}"
@@ -35,6 +39,7 @@ def render_dashboard(result: OutlookResult, history: dict[str, object] | None = 
         for i in sorted(result.indicator_scores, key=lambda item: (item.block, item.indicator_name))
     )
     history_json = json.dumps(history or {"score": [], "indicators": {}, "recessions": []})
+    market_json = json.dumps(market_relationships or {"assets": {}, "bucketLabels": []})
 
     return f"""<!doctype html>
 <html lang="en">
@@ -122,6 +127,8 @@ def render_dashboard(result: OutlookResult, history: dict[str, object] | None = 
       color: var(--ink);
       font: inherit;
     }}
+    .compact-table table {{ min-width: 760px; }}
+    .market-note {{ margin-top: 10px; }}
     @media (max-width: 850px) {{
       header, main {{ padding-left: 16px; padding-right: 16px; }}
       .summary {{ grid-template-columns: 1fr; }}
@@ -186,6 +193,31 @@ def render_dashboard(result: OutlookResult, history: dict[str, object] | None = 
       <div class="chart-box"><canvas id="indicatorChart"></canvas></div>
     </section>
 
+    <section class="panel section">
+      <div class="chart-toolbar">
+        <div>
+          <h2>Market Relationship</h2>
+          <p class="muted">Economy score versus forward ETF and sector returns.</p>
+        </div>
+        <label class="label" for="marketSelect">Asset</label>
+        <select id="marketSelect"></select>
+      </div>
+      <div class="table-wrap compact-table">
+        <table>
+          <thead><tr><th>Asset</th><th>Category</th><th>6M Corr</th><th>12M Corr</th><th>24M Corr</th><th>Months</th></tr></thead>
+          <tbody id="marketSummaryRows"></tbody>
+        </table>
+      </div>
+      <h2 class="section">12M Forward Returns By Score Bucket</h2>
+      <div class="table-wrap compact-table">
+        <table>
+          <thead><tr><th>Economy Score</th><th>Avg 12M Return</th><th>Median 12M Return</th><th>Observations</th></tr></thead>
+          <tbody id="marketBucketRows"></tbody>
+        </table>
+      </div>
+      <p class="muted market-note" id="marketSource"></p>
+    </section>
+
     <section class="section">
       <h2>Block Scores</h2>
       <div class="table-wrap">
@@ -208,8 +240,10 @@ def render_dashboard(result: OutlookResult, history: dict[str, object] | None = 
   </main>
   <div id="chartTooltip" class="tooltip"></div>
   <script id="dashboard-data" type="application/json">{history_json}</script>
+  <script id="market-data" type="application/json">{market_json}</script>
   <script>
     const dashboardData = JSON.parse(document.getElementById("dashboard-data").textContent);
+    const marketData = JSON.parse(document.getElementById("market-data").textContent);
     const axisColor = "#5e6b76";
     const lineColor = "#1f7a8c";
     const recessionColor = "rgba(90, 101, 112, 0.18)";
@@ -398,6 +432,69 @@ def render_dashboard(result: OutlookResult, history: dict[str, object] | None = 
       if (defaultId) select.value = defaultId;
     }}
 
+    function formatPercent(value) {{
+      if (value === null || value === undefined) return "n/a";
+      return `${{(value * 100).toFixed(1)}}%`;
+    }}
+
+    function formatCorrelation(value) {{
+      if (value === null || value === undefined) return "n/a";
+      return Number(value).toFixed(3);
+    }}
+
+    function populateMarketPanel() {{
+      const assets = Object.values(marketData.assets || {{}})
+        .sort((a, b) => a.category.localeCompare(b.category) || a.symbol.localeCompare(b.symbol));
+      const summary = document.getElementById("marketSummaryRows");
+      const select = document.getElementById("marketSelect");
+      summary.innerHTML = "";
+      select.innerHTML = "";
+      for (const asset of assets) {{
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${{asset.symbol}} - ${{asset.name}}</td>
+          <td>${{asset.category}}</td>
+          <td>${{formatCorrelation(asset.correlations["6m"].correlation)}}</td>
+          <td>${{formatCorrelation(asset.correlations["12m"].correlation)}}</td>
+          <td>${{formatCorrelation(asset.correlations["24m"].correlation)}}</td>
+          <td>${{asset.points.length}}</td>
+        `;
+        summary.appendChild(row);
+
+        const option = document.createElement("option");
+        option.value = asset.symbol;
+        option.textContent = `${{asset.symbol}} - ${{asset.name}}`;
+        select.appendChild(option);
+      }}
+      if ((marketData.assets || {{}}).SPY) {{
+        select.value = "SPY";
+      }}
+      renderMarketBuckets();
+    }}
+
+    function renderMarketBuckets() {{
+      const selected = document.getElementById("marketSelect").value;
+      const asset = marketData.assets?.[selected];
+      const rows = document.getElementById("marketBucketRows");
+      const source = document.getElementById("marketSource");
+      rows.innerHTML = "";
+      if (!asset) {{
+        source.textContent = "No market relationship data available.";
+        return;
+      }}
+      for (const bucket of asset.buckets12m) {{
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${{bucket.bucket}}</td>
+          <td>${{formatPercent(bucket.avgReturn)}}</td>
+          <td>${{formatPercent(bucket.medianReturn)}}</td>
+          <td>${{bucket.count}}</td>
+        `;
+        rows.appendChild(row);
+      }}
+      source.textContent = `${{asset.symbol}} price source: ${{asset.source}}. Correlations compare the economy score with forward price returns, not total returns.`;
+    }}
+
     function drawAllCharts() {{
       drawLineChart(document.getElementById("scoreChart"), dashboardData.score || [], {{
         title: "Economy score",
@@ -432,7 +529,9 @@ def render_dashboard(result: OutlookResult, history: dict[str, object] | None = 
     }}
 
     populateIndicatorSelect();
+    populateMarketPanel();
     document.getElementById("indicatorSelect").addEventListener("change", drawAllCharts);
+    document.getElementById("marketSelect").addEventListener("change", renderMarketBuckets);
     window.addEventListener("resize", drawAllCharts);
     drawAllCharts();
     installHover(document.getElementById("scoreChart"));

@@ -3,6 +3,7 @@ from dataclasses import replace
 
 from market_outlook.io import load_indicator_snapshot, load_source_registry
 from market_outlook.history import generate_dashboard_history, load_historical_indicator_points
+from market_outlook.markets import build_market_relationships, load_market_prices
 from market_outlook.scoring import compute_outlook, indicator_score
 
 
@@ -81,6 +82,23 @@ class ScoringTests(unittest.TestCase):
         values = [point["value"] for point in history["score"]]
         self.assertGreater(max(values), 6.5)
         self.assertGreaterEqual(len(history["recessions"]), 2)
+
+    def test_market_relationships_include_indices_and_sectors(self):
+        registry = load_source_registry("data/source_registry.csv")
+        snapshots = load_indicator_snapshot("data/fixtures/latest_indicators.csv")
+        result = compute_outlook(registry, snapshots)
+        historical_points = load_historical_indicator_points("data/fixtures/historical_indicators.csv")
+        history = generate_dashboard_history(registry, snapshots, result, historical_points)
+
+        relationships = build_market_relationships(history["score"], load_market_prices("data/fixtures/market_prices.csv"))
+        assets = relationships["assets"]
+
+        self.assertIn("SPY", assets)
+        self.assertIn("VTI", assets)
+        self.assertIn("IGV", assets)
+        self.assertIn("XLK", assets)
+        self.assertIsNotNone(assets["SPY"]["correlations"]["12m"]["correlation"])
+        self.assertGreater(len(assets["IGV"]["buckets12m"]), 0)
 
 
 if __name__ == "__main__":

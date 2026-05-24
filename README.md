@@ -28,6 +28,12 @@ To refresh FRED-backed historical chart data:
 py scripts/fetch_fred_history.py
 ```
 
+To refresh monthly ETF and sector price histories:
+
+```powershell
+py scripts/fetch_market_history.py
+```
+
 ## Project Shape
 
 - `data/source_registry.csv`: public source registry and canonical series metadata.
