@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import csv
 from datetime import date
-from math import pi, sin
 from pathlib import Path
 
 from .models import IndicatorSnapshot, OutlookResult, SourceSeries
@@ -33,10 +32,6 @@ def _latest_month(snapshots: dict[str, IndicatorSnapshot]) -> tuple[int, int]:
     return parsed.year, parsed.month
 
 
-def _in_recession(date_text: str) -> bool:
-    return any(period["start"] <= date_text <= period["end"] for period in RECESSION_PERIODS)
-
-
 def load_historical_indicator_points(path: str | Path) -> dict[str, list[dict[str, float | str]]]:
     points: dict[str, list[dict[str, float | str]]] = {}
     history_path = Path(path)
@@ -51,67 +46,8 @@ def load_historical_indicator_points(path: str | Path) -> dict[str, list[dict[st
                 numeric_value = float(value)
             except ValueError:
                 continue
-            points.setdefault(row["series_id"], []).append(
-                {
-                    "date": row["date"],
-                    "value": round(numeric_value, 4),
-                }
-            )
+            points.setdefault(row["series_id"], []).append({"date": row["date"], "value": round(numeric_value, 4)})
     return points
-
-
-def _fallback_score_path(index: int, total: int, date_text: str, current_score: float) -> float:
-    progress = index / max(total - 1, 1)
-    cyclical = 6.2 + 0.9 * sin(progress * 5.4 * pi) + 0.35 * sin(progress * 17.0 * pi)
-    if "2008" in date_text:
-        cyclical -= 1.6
-    if _in_recession(date_text):
-        cyclical -= 2.2
-    if date_text >= "2022-01-01":
-        cyclical -= 0.75 * ((date.fromisoformat(date_text).year - 2022) / 4)
-    anchored = cyclical * (1 - progress**3) + current_score * (progress**3)
-    return round(max(1.0, min(10.0, anchored)), 2)
-
-
-def _phase_for(series_id: str) -> float:
-    return (sum(ord(char) for char in series_id) % 29) / 29
-
-
-def _indicator_value(
-    series_id: str,
-    series: SourceSeries,
-    snapshot: IndicatorSnapshot,
-    index: int,
-    total: int,
-    date_text: str,
-) -> float:
-    progress = index / max(total - 1, 1)
-    phase = _phase_for(series_id)
-    cycle = sin((progress * (3.5 + phase * 2.0) + phase) * pi)
-    shorter_cycle = sin((progress * (13.0 + phase * 11.0) + phase * 0.5) * pi)
-    recession_pressure = 1.0 if _in_recession(date_text) else 0.0
-    direction = 1 if series.higher_is_better else -1
-
-    if series_id == "T10Y2Y":
-        base = snapshot.value + 1.4 * sin((progress * 3.0 + 0.2) * pi)
-        if _in_recession(date_text):
-            base += 1.1
-        if "2019" in date_text or date_text >= "2022-01-01":
-            base -= 1.0
-        return round(base * (1 - progress**2) + snapshot.value * (progress**2), 2)
-
-    if series.value_unit in {"%", "pp", "% GDP", "% disposable income"}:
-        amplitude = max(abs(snapshot.value) * 0.12, 0.35)
-        raw = snapshot.value - direction * amplitude * cycle + (-direction) * recession_pressure * amplitude * 1.7
-        raw += shorter_cycle * amplitude * 0.25
-        value = raw * (1 - progress**2) + snapshot.value * (progress**2)
-        return round(max(0.0, value), 2)
-
-    amplitude = max(abs(snapshot.value) * 0.11, 1.0)
-    raw = snapshot.value - direction * amplitude * cycle + (-direction) * recession_pressure * amplitude * 0.9
-    raw += shorter_cycle * amplitude * 0.15
-    value = raw * (1 - progress**2) + snapshot.value * (progress**2)
-    return round(max(0.0, value), 2)
 
 
 def generate_dashboard_history(
@@ -137,32 +73,16 @@ def generate_dashboard_history(
         ]
         has_full_enough_span = bool(real_points) and str(real_points[0]["date"]) <= dates[24]
         if has_full_enough_span:
-            points = real_points
-            history_source = "FRED monthly history"
-        else:
-            points = [
-                {
-                    "date": date_text,
-                    "value": _indicator_value(series_id, series, snapshot, index, len(dates), date_text),
-                }
-                for index, date_text in enumerate(dates)
-            ]
-            history_source = "synthetic fallback"
-        indicators[series_id] = {
-            "name": series.indicator_name,
-            "block": series.block,
-            "unit": series.value_unit,
-            "higherIsBetter": series.higher_is_better,
-            "historySource": history_source,
-            "points": points,
-        }
+            indicators[series_id] = {
+                "name": series.indicator_name,
+                "block": series.block,
+                "unit": series.value_unit,
+                "higherIsBetter": series.higher_is_better,
+                "historySource": "FRED monthly history",
+                "points": real_points,
+            }
 
     score_points = _score_from_indicator_history(registry, indicators, result.headline_score)
-    if not score_points:
-        score_points = [
-            {"date": date_text, "value": _fallback_score_path(index, len(dates), date_text, result.headline_score)}
-            for index, date_text in enumerate(dates)
-        ]
 
     return {
         "score": score_points,

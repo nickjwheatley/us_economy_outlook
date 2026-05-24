@@ -71,6 +71,9 @@ class ScoringTests(unittest.TestCase):
         self.assertEqual(history["indicators"]["UNRATE"]["historySource"], "FRED monthly history")
         self.assertEqual(history["indicators"]["T10Y2Y"]["historySource"], "FRED monthly history")
         self.assertEqual(len(history["indicators"]["T10Y2Y"]["points"]), 240)
+        self.assertNotIn("CAPE", history["indicators"])
+        self.assertNotIn("SP500FPE", history["indicators"])
+        self.assertNotIn("BAMLH0A0HYM2", history["indicators"])
         self.assertGreaterEqual(len(history["recessions"]), 2)
 
 

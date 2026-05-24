@@ -178,7 +178,7 @@ def render_dashboard(result: OutlookResult, history: dict[str, object] | None = 
       <div class="chart-toolbar">
         <div>
           <h2>Indicator History</h2>
-          <p class="muted">Select any score input to inspect its 20-year path.</p>
+          <p class="muted">Only indicators with real historical data are shown.</p>
         </div>
         <label class="label" for="indicatorSelect">Indicator</label>
         <select id="indicatorSelect"></select>
@@ -417,6 +417,17 @@ def render_dashboard(result: OutlookResult, history: dict[str, object] | None = 
           color: indicator.higherIsBetter ? "#1f7a8c" : "#8c4f1f",
           decimals: indicator.unit.includes("%") || indicator.unit === "pp" ? 1 : 0
         }});
+      }} else {{
+        const canvas = document.getElementById("indicatorChart");
+        const {{ ctx, width, height }} = resizeCanvas(canvas);
+        ctx.clearRect(0, 0, width, height);
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(0, 0, width, height);
+        ctx.fillStyle = axisColor;
+        ctx.font = "14px Segoe UI, Arial, sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("No real historical indicator data is available.", width / 2, height / 2);
       }}
     }}
 
