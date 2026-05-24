@@ -2,6 +2,7 @@ import unittest
 from dataclasses import replace
 
 from market_outlook.io import load_indicator_snapshot, load_source_registry
+from market_outlook.history import generate_dashboard_history
 from market_outlook.scoring import compute_outlook, indicator_score
 
 
@@ -55,6 +56,18 @@ class ScoringTests(unittest.TestCase):
         self.assertIn("ERP", series_ids)
         self.assertLess(block_scores["Market Valuation"], 4.0)
         self.assertIn("Valuation is stretched", result.vti_implication)
+
+    def test_dashboard_history_contains_score_and_indicators(self):
+        registry = load_source_registry("data/source_registry.csv")
+        snapshots = load_indicator_snapshot("data/fixtures/latest_indicators.csv")
+        result = compute_outlook(registry, snapshots)
+
+        history = generate_dashboard_history(registry, snapshots, result)
+
+        self.assertEqual(len(history["score"]), 240)
+        self.assertIn("UNRATE", history["indicators"])
+        self.assertEqual(len(history["indicators"]["UNRATE"]["points"]), 240)
+        self.assertGreaterEqual(len(history["recessions"]), 2)
 
 
 if __name__ == "__main__":

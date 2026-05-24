@@ -6,6 +6,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from .dashboard import render_dashboard
+from .history import generate_dashboard_history
 from .io import load_indicator_snapshot, load_source_registry
 from .scoring import compute_outlook
 
@@ -24,13 +25,14 @@ def main() -> None:
     registry = load_source_registry(args.registry)
     snapshots = load_indicator_snapshot(args.snapshot)
     result = compute_outlook(registry, snapshots)
+    history = generate_dashboard_history(registry, snapshots, result)
 
     html_path = Path(args.out)
     json_path = Path(args.json_out)
     html_path.parent.mkdir(parents=True, exist_ok=True)
     json_path.parent.mkdir(parents=True, exist_ok=True)
 
-    html_path.write_text(render_dashboard(result), encoding="utf-8")
+    html_path.write_text(render_dashboard(result, history), encoding="utf-8")
     json_path.write_text(json.dumps(asdict(result), indent=2), encoding="utf-8")
 
     print(f"score={result.headline_score:.2f}")

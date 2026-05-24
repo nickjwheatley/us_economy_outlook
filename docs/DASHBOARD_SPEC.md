@@ -22,6 +22,7 @@ It includes:
 
 - Historical score chart
 - Recession shading
+- Indicator selector with 20-year history chart for each score input
 - Block heatmap
 - Top positive and negative drivers
 - Change since prior run
