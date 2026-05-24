@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import json
 from collections import defaultdict
 from datetime import date
 from pathlib import Path
@@ -11,6 +12,10 @@ ROOT = Path(__file__).resolve().parents[1]
 REGISTRY = ROOT / "data" / "source_registry.csv"
 OUT = ROOT / "data" / "fixtures" / "historical_indicators.csv"
 FRED_CSV = "https://fred.stlouisfed.org/graph/fredgraph.csv?id={series_id}"
+SHILLER_CSV = "https://posix4e.github.io/shiller_wrapper_data/data/stock_market_data.csv"
+WORLD_BANK_MARKET_CAP_GDP = (
+    "https://api.worldbank.org/v2/country/USA/indicator/CM.MKT.LCAP.GD.ZS?format=json&per_page=100"
+)
 
 
 def month_key(date_text: str) -> str:
@@ -46,9 +51,72 @@ def fetch_series(series_id: str) -> list[dict[str, str]]:
         monthly_last[month_key(observation_date)] = value
 
     return [
-        {"series_id": series_id, "date": observation_date, "value": value}
+        {"series_id": series_id, "date": observation_date, "value": value, "source": "FRED monthly history"}
         for observation_date, value in sorted(monthly_last.items())
     ]
+
+
+def fetch_shiller_valuation_series() -> list[dict[str, str]]:
+    try:
+        with urlopen(SHILLER_CSV, timeout=30) as response:
+            text = response.read().decode("utf-8")
+    except (HTTPError, URLError, TimeoutError) as error:
+        print(f"skip Shiller valuation data: {error}")
+        return []
+
+    rows: list[dict[str, str]] = []
+    for row in csv.reader(text.splitlines()):
+        if not row or row[0] == "date_string":
+            continue
+        if len(row) < 10:
+            continue
+        observation_date = row[0].strip()
+        cape = row[7].strip()
+        long_rate = row[9].strip()
+        if cape:
+            rows.append(
+                {
+                    "series_id": "CAPE",
+                    "date": month_key(observation_date),
+                    "value": cape,
+                    "source": "Robert Shiller/Yale monthly data",
+                }
+            )
+        if cape and long_rate:
+            spread = (100 / float(cape)) - float(long_rate)
+            rows.append(
+                {
+                    "series_id": "CAPE_YIELD_SPREAD",
+                    "date": month_key(observation_date),
+                    "value": f"{spread:.6f}",
+                    "source": "Calculated from Shiller CAPE and 10Y Treasury",
+                }
+            )
+    return rows
+
+
+def fetch_world_bank_market_cap_to_gdp() -> list[dict[str, str]]:
+    try:
+        with urlopen(WORLD_BANK_MARKET_CAP_GDP, timeout=30) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except (HTTPError, URLError, TimeoutError, json.JSONDecodeError) as error:
+        print(f"skip World Bank market-cap-to-GDP: {error}")
+        return []
+
+    rows: list[dict[str, str]] = []
+    for item in payload[1]:
+        value = item.get("value")
+        if value is None:
+            continue
+        rows.append(
+            {
+                "series_id": "BUFFETT",
+                "date": f"{item['date']}-01-01",
+                "value": f"{float(value):.6f}",
+                "source": "World Bank annual data",
+            }
+        )
+    return sorted(rows, key=lambda row: row["date"])
 
 
 def main() -> None:
@@ -60,6 +128,8 @@ def main() -> None:
             continue
         seen.add(series_id)
         rows.extend(fetch_series(series_id))
+    rows.extend(fetch_shiller_valuation_series())
+    rows.extend(fetch_world_bank_market_cap_to_gdp())
 
     by_series = defaultdict(int)
     for row in rows:
@@ -70,7 +140,7 @@ def main() -> None:
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
     with OUT.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=["series_id", "date", "value"])
+        writer = csv.DictWriter(handle, fieldnames=["series_id", "date", "value", "source"])
         writer.writeheader()
         writer.writerows(rows)
 

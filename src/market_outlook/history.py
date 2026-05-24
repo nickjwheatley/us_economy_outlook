@@ -46,7 +46,13 @@ def load_historical_indicator_points(path: str | Path) -> dict[str, list[dict[st
                 numeric_value = float(value)
             except ValueError:
                 continue
-            points.setdefault(row["series_id"], []).append({"date": row["date"], "value": round(numeric_value, 4)})
+            points.setdefault(row["series_id"], []).append(
+                {
+                    "date": row["date"],
+                    "value": round(numeric_value, 4),
+                    "source": row.get("source") or "Historical source data",
+                }
+            )
     return points
 
 
@@ -78,7 +84,7 @@ def generate_dashboard_history(
                 "block": series.block,
                 "unit": series.value_unit,
                 "higherIsBetter": series.higher_is_better,
-                "historySource": "FRED monthly history",
+                "historySource": str(real_points[0].get("source", "Historical source data")),
                 "points": real_points,
             }
 

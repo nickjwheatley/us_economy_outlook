@@ -170,7 +170,7 @@ Useful market-leading indicators:
 - Shiller CAPE ratio
 - Forward P/E
 - Market capitalization to GDP
-- Equity risk premium
+- CAPE yield minus 10Y Treasury yield
 - 6-month and 12-month total return
 - Breadth: percentage of stocks above 200-day moving average
 - Credit spreads

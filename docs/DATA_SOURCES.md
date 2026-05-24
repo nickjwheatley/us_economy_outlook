@@ -40,7 +40,7 @@ The MVP includes:
 
 - `CAPE`: Shiller cyclically adjusted price/earnings ratio.
 - `SP500FPE`: S&P 500 forward price/earnings ratio.
-- `BUFFETT`: broad US equity market capitalization to GDP.
-- `ERP`: equity risk premium estimate.
+- `BUFFETT`: broad US equity market capitalization to GDP from the World Bank.
+- `CAPE_YIELD_SPREAD`: calculated from Shiller CAPE earnings yield and the nominal 10-year Treasury yield in Shiller's dataset.
 
 These indicators are not pure recession signals. They primarily shape the VTI and forward-return interpretation: expensive markets can still rise, but high starting valuations tend to reduce long-horizon expected returns and increase vulnerability to earnings or rate disappointment.

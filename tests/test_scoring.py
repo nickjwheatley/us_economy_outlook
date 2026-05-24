@@ -15,8 +15,8 @@ class ScoringTests(unittest.TestCase):
     def test_fixture_score_is_deterministic(self):
         result = self._result()
 
-        self.assertEqual(result.rules_score, 4.07)
-        self.assertEqual(result.headline_score, 4.35)
+        self.assertEqual(result.rules_score, 4.04)
+        self.assertEqual(result.headline_score, 4.33)
         self.assertEqual(result.regime, "stall-speed slowdown")
         self.assertEqual(result.recession_risk, "elevated")
 
@@ -53,7 +53,7 @@ class ScoringTests(unittest.TestCase):
         self.assertIn("CAPE", series_ids)
         self.assertIn("SP500FPE", series_ids)
         self.assertIn("BUFFETT", series_ids)
-        self.assertIn("ERP", series_ids)
+        self.assertIn("CAPE_YIELD_SPREAD", series_ids)
         self.assertLess(block_scores["Market Valuation"], 4.0)
         self.assertIn("Valuation is stretched", result.vti_implication)
 
@@ -71,7 +71,11 @@ class ScoringTests(unittest.TestCase):
         self.assertEqual(history["indicators"]["UNRATE"]["historySource"], "FRED monthly history")
         self.assertEqual(history["indicators"]["T10Y2Y"]["historySource"], "FRED monthly history")
         self.assertEqual(len(history["indicators"]["T10Y2Y"]["points"]), 240)
-        self.assertNotIn("CAPE", history["indicators"])
+        self.assertIn("CAPE", history["indicators"])
+        self.assertIn("BUFFETT", history["indicators"])
+        self.assertIn("CAPE_YIELD_SPREAD", history["indicators"])
+        self.assertEqual(history["indicators"]["CAPE"]["historySource"], "Robert Shiller/Yale monthly data")
+        self.assertEqual(history["indicators"]["BUFFETT"]["historySource"], "World Bank annual data")
         self.assertNotIn("SP500FPE", history["indicators"])
         self.assertNotIn("BAMLH0A0HYM2", history["indicators"])
         self.assertGreaterEqual(len(history["recessions"]), 2)
